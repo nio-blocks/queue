@@ -34,7 +34,7 @@ class TestQueue(NIOBlockTestCase):
         self.last_notified = signals
         signals[0]._event.set()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_emit(self, back_patch):
         e = Event()
         signals = [EventSignal(e)]
@@ -54,7 +54,7 @@ class TestQueue(NIOBlockTestCase):
         self.assert_num_signals_notified(1, blk)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_negative_interval(self, back_patch):
         e = Event()
         signals = [EventSignal(e)]
@@ -74,7 +74,7 @@ class TestQueue(NIOBlockTestCase):
         self.assert_num_signals_notified(0, blk)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_group_by(self, back_patch):
         signals = [
             EventSignal(),
@@ -97,7 +97,7 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(len(blk._queues['apple']), 1)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_full(self, back_patch):
         signals = [
             FlavorSignal('cherry'),
@@ -117,7 +117,7 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(blk._queues['null'][0].flavor, 'umami')
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_reload(self, back_patch):
         e1 = Event()
         e2 = Event()
@@ -145,7 +145,7 @@ class TestQueue(NIOBlockTestCase):
         self.assert_num_signals_notified(2, blk)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_unique(self, back_patch):
         signals = [
             FlavorSignal(flavor='apple'),
@@ -166,7 +166,7 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(len(blk._queues['null']), 2)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_all(self, back_patch):
         e1 = Event()
         e2 = Event()
@@ -200,7 +200,7 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(len(blk._queues['cherry']), 1)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_view_command(self, back_patch):
         signals = [
             EventSignal(),
@@ -231,7 +231,7 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(len(blk._queues['apple']), 1)
         blk.stop()
 
-    @patch('queue.queue_block.Queue._backup')
+    @patch('util.queue.queue_block.Queue._backup')
     def test_remove_command(self, back_patch):
         signals = [
             EventSignal(),
