@@ -62,9 +62,7 @@ class Queue(Block):
 
     def configure(self, context):
         super().configure(context)
-        prev_queues = self.persistence.load('queues')
-        with self._queues_lock:
-            self._queues = prev_queues or self._queues
+        self._load()
 
     def start(self):
         super().start()
@@ -228,6 +226,11 @@ class Queue(Block):
                     "Notifying {} signals".format(len(signals_to_notify))
                 )
                 self.notify_signals(signals_to_notify)
+
+    def _load(self):
+        prev_queues = self.persistence.load('queues')
+        with self._queues_lock:
+            self._queues = prev_queues or self._queues
 
     def _backup(self):
         ''' Persist the current state of the queues using the persistence module.
