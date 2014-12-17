@@ -3,11 +3,8 @@ from datetime import timedelta
 from nio.common.block.base import Block
 from nio.common.command import command
 from nio.common.discovery import Discoverable, DiscoverableType
-from nio.metadata.properties.timedelta import TimeDeltaProperty
-from nio.metadata.properties.int import IntProperty
-from nio.metadata.properties.bool import BoolProperty
-from nio.metadata.properties.string import StringProperty
-from nio.metadata.properties.expression import ExpressionProperty
+from nio.metadata.properties import IntProperty, BoolProperty, PropertyHolder, \
+    ExpressionProperty, ObjectProperty,StringProperty, TimeDeltaProperty
 from nio.common.command.params.string import StringParameter
 from nio.common.command.params.dict import DictParameter
 from nio.modules.scheduler import Job
@@ -46,7 +43,9 @@ class Queue(Block):
     group_by = ExpressionProperty(default='null', attr_default='null', title='Group By')
     chunk_size = IntProperty(default=1, title='Chunk Size')
     reload = BoolProperty(default=False, title='Auto-Reload?')
-    uniqueness = ExpressionProperty(title='Queue Uniqueness Expression')
+    uniqueness = ExpressionProperty(title='Queue Uniqueness Expression',
+                                    attr_default=None)
+    update = BoolProperty(title='Update Non-Unique Signals', default=False)
 
     def __init__(self):
         super().__init__()
@@ -163,8 +162,9 @@ class Queue(Block):
                 )
             except Exception as e:
                 unique_val = None
-            if unique_val:
-                for sig in self._queues[grp]:
+                
+            if unique_val is not None:
+                for idx, sig in enumerate(self._queues[grp]):
                     try:
                         sig_val = self.uniqueness(sig)
                     except Exception as e:
@@ -173,6 +173,8 @@ class Queue(Block):
                         self._logger.debug(
                             "Signal {} already in {}_queue".format(sig_val, grp)
                         )
+                        if self.update:
+                            self._queues[grp][idx] = signal
                         return
 
             # pop one off the top of that queue if it's at capacity
