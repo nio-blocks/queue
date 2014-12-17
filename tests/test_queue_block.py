@@ -157,8 +157,8 @@ class TestQueue(NIOBlockTestCase):
     def test_unique(self, *back_patch):
         signals = [
             FlavorSignal(flavor='apple'),
-            FlavorSignal(flavor='cherry'),
-            FlavorSignal(flavor='cherry')
+            FlavorSignal(flavor='cherry', meta='regular'),
+            FlavorSignal(flavor='cherry', meta='sour')
         ]
         blk = Queue()
         config = {
@@ -172,6 +172,7 @@ class TestQueue(NIOBlockTestCase):
         blk.start()
         blk.process_signals(signals)
         self.assertEqual(len(blk._queues['null']), 2)
+        self.assertEqual(blk._queues['null'][1].meta, 'regular')
         blk.stop()
 
     @patch.object(Queue, '_load')
