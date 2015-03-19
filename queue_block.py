@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from datetime import timedelta
 from nio.common.block.base import Block
 from nio.common.command import command
@@ -10,18 +11,17 @@ from nio.common.command.params.dict import DictParameter
 from nio.modules.scheduler import Job
 from nio.modules.threading import Lock
 from nio.metadata.properties.expression import Evaluator
+from .mixins.group_by.group_by_block import GroupBy
 
 
-@command("update_props",
-         DictParameter("props", default=''))
-@command("view",
-         StringParameter("group", default=''))
+@command("update_props", DictParameter("props", default=''))
+@command("view", StringParameter("group", default=''))
 @command("remove",
          StringParameter("query", default=''),
          StringParameter("group", default=''))
 @command("emit")
 @Discoverable(DiscoverableType.block)
-class Queue(Block):
+class Queue(GroupBy, Block):
     """ Queue block.
 
     A NIO block for queueing up signals. As signals pile up,
@@ -49,12 +49,10 @@ class Queue(Block):
 
     def __init__(self):
         super().__init__()
-        self._queues = {'null': []}
-
+        self._queues = defaultdict(list)
         self._queue_locks = {
             'null': Lock()
         }
-        self._queues_lock = Lock()
         self._meta_lock = Lock()
         self._emit_job = None
         self._backup_job = None
@@ -80,24 +78,9 @@ class Queue(Block):
 
     def process_signals(self, signals):
         self._logger.debug("Processing {} signals".format(len(signals)))
-        for signal in signals:
-            self.push(signal)
+        self.for_each_group(self._push_group, signals)
 
-    def peek(self, grp, count=1):
-        ''' Return the top n signals in the specified queue,
-        leaving the underlying data unchanged.
-
-        Args:
-            grp (str): The queue under inspection.
-            count (int): The number of signals to peek at.
-
-        Returns:
-            top_n (list): 'Count' signals from the front of the queue.
-
-        '''
-        return self._queues.get(grp, [])[0:count]
-
-    def pop(self, grp="null", count=1, reload=False):
+    def pop(self, grp="null"):
         ''' Remove the top n signals from the specified queue.
 
         Args:
@@ -109,87 +92,78 @@ class Queue(Block):
             top_n (list): 'Count' signals from the front of the queue.
 
         '''
-
+        count = self.chunk_size
+        reload = self.reload
         # lock the queue we're popping from
-        self._logger.debug("pop: {} {} {}".format(grp,
-                                                  count,
-                                                  reload))
+        self._logger.debug("pop: {} {} {}".format(grp, count, reload))
         lock = self._get_lock(grp)
-        lock.acquire()
-
-        # check out the front of the queue
-        top_n = self.peek(grp, count)
-
-        # only remove the signals if there are signals to remove
-        if top_n:
+        with lock:
+            # check out the front of the queue
+            top_n = self._queues[grp][0:count]
             self._logger.debug(
-                "Removing %d signals from %s_queue" % (count, grp)
-            )
-            self._queues[grp] = self._queues[grp][count:]
+                "Removing %d signals from %s_queue" % (len(top_n), grp))
+            self._queues[grp] = self._queues[grp][len(top_n):]
             # If reloading, put signal back on queue.
             if reload:
                 self._logger.debug("Reloading {}_queue".format(grp))
                 self._queues[grp].extend(top_n)
-
-        # unlock the queue
-        lock.release()
         return top_n
 
-    def push(self, signal):
+    def push(self, signal, grp):
         ''' Add a signal to the back of the queue.
 
         Args:
             signal (Signal): The signal to add.
+            grp (str): Group to add signal to.
+            queue (queue): Queue to add signal to.
 
         Returns:
             None
 
         '''
-        # determine which queue the signal is bound for
-        grp = self.group_by(signal)
-        grp = str(grp)
-        with self._queues_lock:
-            queue = self._queues[grp] = self._queues.get(grp, [])
+        queue = self._queues[grp]
 
-        # lock the queue before appending
-        lock = self._get_lock(grp)
-        with lock:
-            # check for uniqueness if property is set
-            try:
-                unique_val = self.uniqueness(signal)
-                self._logger.debug(
-                    "Testing uniqueness for signal: {}".format(unique_val)
-                )
-            except Exception as e:
-                unique_val = None
-                
-            if unique_val is not None:
-                for idx, sig in enumerate(self._queues[grp]):
-                    try:
-                        sig_val = self.uniqueness(sig)
-                    except Exception as e:
-                        sig_val = None
-                    if sig_val == unique_val:
-                        self._logger.debug(
-                            "Signal {} already in {}_queue".format(sig_val, grp)
-                        )
-                        if self.update:
-                            self._queues[grp][idx] = signal
-                        return
+        # check for uniqueness if property is set
+        try:
+            unique_val = self.uniqueness(signal)
+            self._logger.debug(
+                "Testing uniqueness for signal: {}".format(unique_val)
+            )
+        except Exception as e:
+            unique_val = None
 
-            # pop one off the top of that queue if it's at capacity
-            if len(queue) == self.capacity:
-                self._logger.debug(
-                    "Pushing signal and capactity of {}_signal is full: {}".format(
-                        grp, self.capacity
+        if unique_val is not None:
+            for idx, sig in enumerate(self._queues[grp]):
+                try:
+                    sig_val = self.uniqueness(sig)
+                except Exception as e:
+                    sig_val = None
+                if sig_val == unique_val:
+                    self._logger.debug(
+                        "Signal {} already in {}_queue".format(sig_val, grp)
                     )
-                )
-                # self.pop(grp) but without needing a new lock
-                if self.peek(grp):
-                    self._queues[grp] = self._queues[grp][1:]
+                    if self.update:
+                        self._queues[grp][idx] = signal
+                    return
 
-            self._logger.debug("Appending signal to {}_queue".format(grp))
-            self._queues[grp].append(signal)
+        # pop one off the top of that queue if it's at capacity
+        if len(queue) == self.capacity:
+            self._logger.debug(
+                "Pushing signal and capactity of {}_signal is full: {}".format(
+                    grp, self.capacity
+                )
+            )
+            self._queues[grp] = self._queues[grp][1:]
+
+        self._logger.debug("Appending signal to {}_queue".format(grp))
+        self._queues[grp].append(signal)
+
+    def _push_group(self, signals, group):
+        # lock the queue before appending
+        lock = self._get_lock(group)
+        with lock:
+            for signal in signals:
+                self.push(signal, group)
 
     def _get_lock(self, grp="null"):
         ''' Returns the lock for a particular queue.
@@ -215,24 +189,20 @@ class Queue(Block):
         ''' Notify the configured number of signals from the front of the queue.
 
         '''
-        self._logger.debug("emit")
-        with self._queues_lock:
-            self._logger.debug("emit has queue lock")
-            signals_to_notify = []
-            for grp in self._queues:
-                top_n = self.pop(grp, self.chunk_size, self.reload)
-                if top_n:
-                    signals_to_notify.extend(top_n)
-            if signals_to_notify:
-                self._logger.debug(
-                    "Notifying {} signals".format(len(signals_to_notify))
-                )
-                self.notify_signals(signals_to_notify)
+        signals_to_notify = self.for_each_group(self.pop)
+        if signals_to_notify:
+            self._logger.debug(
+                "Notifying {} signals".format(len(signals_to_notify))
+            )
+            self.notify_signals(signals_to_notify)
 
     def _load(self):
         prev_queues = self.persistence.load('queues')
-        with self._queues_lock:
-            self._queues = prev_queues or self._queues
+        # if persisted dictonary is not defaultdict, convert it
+        if prev_queues:
+            self._queues = defaultdict(list, prev_queues)
+        # build _groups for groupby mixin
+        self._groups = list(self._queues.keys())
 
     def _backup(self):
         ''' Persist the current state of the queues using the persistence module.
@@ -277,18 +247,18 @@ class Queue(Block):
 
         if group and group in self._queues:
             # if group exists, return only the specified group
-            lock = self._get_lock(group)
-            with lock:
-                response, _ = self._inspect_group(response, group)
+            self._view_group(group, response)
         elif not group:
             # if no group is specifed in params return all groups
-            with self._queues_lock:
-                for group in self._queues:
-                    lock = self._get_lock(group)
-                    with lock:
-                        response, _ = self._inspect_group(response, group)
+            self.for_each_group(self._view_group,
+                                kwargs={'response': response})
 
         return response
+
+    def _view_group(self, group, response):
+        lock = self._get_lock(group)
+        with lock:
+            response, _ = self._inspect_group(response, group)
 
     def remove(self, query, group):
         ''' Remove signals from *group* where *query* is True.
@@ -305,20 +275,21 @@ class Queue(Block):
 
         if group and group in self._queues:
             # if group exists, remove from only only the specified group
-            lock = self._get_lock(group)
-            with lock:
-                response, ignored_signals = self._inspect_group(response, group, query)
-                self._queues[group] = ignored_signals
+            self._remove_from_group(group, response, query)
         elif not group:
             # if no group is specifed in params return all groups
-            with self._queues_lock:
-                for group in self._queues:
-                    lock = self._get_lock(group)
-                    with lock:
-                        response, ignored_signals = self._inspect_group(response, group, query)
-                        self._queues[group] = ignored_signals
+            self.for_each_group(self._remove_from_group,
+                                kwargs={'response': response,
+                                        'query': query})
 
         return response
+
+    def _remove_from_group(self, group, response, query):
+        lock = self._get_lock(group)
+        with lock:
+            response, signals = self._inspect_group(response, group, query)
+            # signals that don't match the query stay in the queue.
+            self._queues[group] = signals
 
     def update_props(self, props):
         ''' Updates the *interval* property.
