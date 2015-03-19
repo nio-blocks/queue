@@ -96,13 +96,12 @@ class Queue(GroupBy, Block):
         reload = self.reload
         # lock the queue we're popping from
         self._logger.debug("pop: {} {} {}".format(grp, count, reload))
-        lock = self._get_lock(grp)
-        with lock:
+        with self._get_lock(grp):
             # check out the front of the queue
             top_n = self._queues[grp][0:count]
             self._logger.debug(
                 "Removing %d signals from %s_queue" % (len(top_n), grp))
-            self._queues[grp] = self._queues[grp][len(top_n):]
+            self._queues[grp][:] = self._queues[grp][len(top_n):]
             # If reloading, put signal back on queue.
             if reload:
                 self._logger.debug("Reloading {}_queue".format(grp))
@@ -115,7 +114,6 @@ class Queue(GroupBy, Block):
         Args:
             signal (Signal): The signal to add.
             grp (str): Group to add signal to.
-            queue (queue): Queue to add signal to.
 
         Returns:
             None
@@ -127,13 +125,14 @@ class Queue(GroupBy, Block):
         try:
             unique_val = self.uniqueness(signal)
             self._logger.debug(
-                "Testing uniqueness for signal: {}".format(unique_val)
-            )
+                "Testing uniqueness for signal: {}".format(unique_val))
         except Exception as e:
             unique_val = None
+            self._logger.warning(
+                "Uniqueness expression failed. Using value of None.")
 
         if unique_val is not None:
-            for idx, sig in enumerate(self._queues[grp]):
+            for idx, sig in enumerate(queue):
                 try:
                     sig_val = self.uniqueness(sig)
                 except Exception as e:
@@ -143,7 +142,7 @@ class Queue(GroupBy, Block):
                         "Signal {} already in {}_queue".format(sig_val, grp)
                     )
                     if self.update:
-                        self._queues[grp][idx] = signal
+                       queue[idx] = signal
                     return
 
         # pop one off the top of that queue if it's at capacity
@@ -153,15 +152,14 @@ class Queue(GroupBy, Block):
                     grp, self.capacity
                 )
             )
-            self._queues[grp] = self._queues[grp][1:]
+            queue.pop(0)
 
         self._logger.debug("Appending signal to {}_queue".format(grp))
-        self._queues[grp].append(signal)
+        queue.append(signal)
 
     def _push_group(self, signals, group):
         # lock the queue before appending
-        lock = self._get_lock(group)
-        with lock:
+        with self._get_lock(group):
             for signal in signals:
                 self.push(signal, group)
 
@@ -172,9 +170,8 @@ class Queue(GroupBy, Block):
         alongside our dict of queues.
 
         '''
-        self._meta_lock.acquire()
-        self._queue_locks[grp] = self._queue_locks.get(grp, Lock())
-        self._meta_lock.release()
+        with self._meta_lock:
+            self._queue_locks[grp] = self._queue_locks.get(grp, Lock())
         return self._queue_locks[grp]
 
     def _start_emit_job(self):
@@ -256,8 +253,7 @@ class Queue(GroupBy, Block):
         return response
 
     def _view_group(self, group, response):
-        lock = self._get_lock(group)
-        with lock:
+        with self._get_lock(group):
             response, _ = self._inspect_group(response, group)
 
     def remove(self, query, group):
@@ -285,8 +281,7 @@ class Queue(GroupBy, Block):
         return response
 
     def _remove_from_group(self, group, response, query):
-        lock = self._get_lock(group)
-        with lock:
+        with self._get_lock(group):
             response, signals = self._inspect_group(response, group, query)
             # signals that don't match the query stay in the queue.
             self._queues[group] = signals
