@@ -31,7 +31,7 @@ Commands
 
 -   **emit**: Notify signals off the end of the queues.
 -   **remove** (query="", group=""): Remove signals from the queue *group* where *query* evaluates to True. *query* uses the Expression Property syntax for evaluatuation. For example, to remove all signals, use `{{True}}` or to remove signals with *val* equal to 1 use `{{$val == 1}}`. If no *group* is specified, then all groups are inspected. Signals are not notified.
--   **view** (group=""): View signals in the queue *group*. If *group* is not specified, all signals in all queues are returned. Signals are not notified.
+-   **view** (query="", group=""): View signals in the queue *group*. If *group* is not specified, all signals in all queues are returned. Signals are not notified.
 -   **update_props** (props=""): Modify the value of a property on a started block. Parameter *props* is a dictionary where the *key* is a block property and the *value* is the new value. *interval* is the only property currently supported. When *interval* is updated, the recurring emit job will be cancelled and restarted, even if the new value is equal to the previous one.
 
 Input

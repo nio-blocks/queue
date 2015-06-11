@@ -15,7 +15,9 @@ from .mixins.group_by.group_by_block import GroupBy
 
 
 @command("update_props", DictParameter("props", default=''))
-@command("view", StringParameter("group", default=''))
+@command("view",
+         StringParameter("query", default='{{ True }}'),
+         StringParameter("group", default=''))
 @command("remove",
          StringParameter("query", default=''),
          StringParameter("group", default=''))
@@ -214,8 +216,9 @@ class Queue(GroupBy, Block):
         self._meta_lock.release()
         self.persistence.save()
 
-    def _inspect_group(self, response, group, query="{{True}}"):
+    def _inspect_group(self, response, group):
         response_group = {'count': 0, 'signals': []}
+        query = response.get('query', '{{ True }}')
         ignored_signals = []
         for signal in self._queues.get(group, []):
             try:
@@ -231,13 +234,14 @@ class Queue(GroupBy, Block):
         response['groups'][group] = response_group
         return response, ignored_signals
 
-    def view(self, group):
+    def view(self, query, group):
         ''' Command to view the signals that are in the queue.
 
         If no group parameter is specified, all queues are returned.
         '''
         self._logger.debug("Command: view")
         response = {}
+        response['query'] = query
         response['group'] = group
         response['count'] = 0
         response['groups'] = {}
@@ -282,7 +286,7 @@ class Queue(GroupBy, Block):
 
     def _remove_from_group(self, group, response, query):
         with self._get_lock(group):
-            response, signals = self._inspect_group(response, group, query)
+            response, signals = self._inspect_group(response, group)
             # signals that don't match the query stay in the queue.
             self._queues[group] = signals
 
