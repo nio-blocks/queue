@@ -1,20 +1,20 @@
 Queue
 ===========
 
-A NIO block for queueing up signals. As signals pile up, the Queue block releases a configurable number at a configurable interval. If incoming signals would overflow the queue, signals are popped off the front as needed. These overflow signals are simply dropped, not notified and sent to the next block.
+A NIO block for queueing up signals. As signals pile up, the Queue block releases a configurable number at a configurable interval. If incoming signals would overflow the queue, signals are popped off the front end as needed. These overflow signals are simply dropped, not notified and sent to the next block.
 
 If a *group_by* string is configured, incoming signals are divided and grouped by the value of that attribute. The configured capacity applies to *each* such queue, not the block as a whole.
 
-If a *uniqueness* expression is set, then each queue will only contain signal that are unique according to the expression. If a signl is to be appended to the queue that matches a signal already in the queue, then it will be dropped.
+If a *uniqueness* expression is set, then each queue will only contain signals that are unique according to the expression. If a signal is to be appended to the queue that matches a signal already in the queue, then it will be dropped.
 
-A negative *interval* mean that signals will not be emitted at any interval. Instead, the *emit* command is the only way for the block to notify signals.
+A negative *interval* means that signals will not be emitted at any interval. Instead, the *emit* command is the only way for the block to notify signals.
 
 Uses persistance to maintain queues between stopping and starting of the block.
 
 Properties
 --------------
 
--   **capacity**: Size of each queue. When queue exceeds capacity, a signal is popped off the end and *not* notified.
+-   **capacity**: Size of each queue. When queue exceeds capacity, a signal is popped off the front end and *not* notified.
 -   **group_by**: Signal attribute that determines what queue to put the signal in. Defaults to group 'null' if attribute does not exist or *group_by* is unspecified.
 -   **chunk_size**: Number of signals to notify each *interval* period and *emit* command.
 -   **interval**: Period at which signals are notified from queues.
@@ -36,7 +36,7 @@ Commands
 
 Input
 -------
-Any list of signals. If *group_by* is uses, then that attribute is expected to be on the incoming signals. Otherweise signals go to default 'null' group.
+Any list of signals. If *group_by* is used, then that attribute is expected to be on the incoming signals. Otherweise signals go to default 'null' group.
 
 Output
 ---------
