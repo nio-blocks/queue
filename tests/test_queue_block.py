@@ -59,12 +59,35 @@ class TestQueue(NIOBlockTestCase):
     @patch.object(Queue, '_load')
     @patch.object(Queue, '_backup')
     def test_negative_interval(self, *back_patch):
+        """ Don't emit signals on any interval when it is negative """
         e = Event()
         signals = [EventSignal(e)]
         blk = Queue()
         config = {
             "interval": {
                 "seconds": -1
+            },
+            "capacity": 4,
+            "chunk_size": 1,
+        }
+        self.configure_block(blk, config)
+        blk.start()
+        blk.process_signals(signals)
+        e.wait(1)
+        self.assertEqual(len(blk._queues['null']), 1)
+        self.assert_num_signals_notified(0, blk)
+        blk.stop()
+
+    @patch.object(Queue, '_load')
+    @patch.object(Queue, '_backup')
+    def test_zero_interval(self, *back_patch):
+        """ Don't emit signals on any interval when it is zero """
+        e = Event()
+        signals = [EventSignal(e)]
+        blk = Queue()
+        config = {
+            "interval": {
+                "seconds": 0
             },
             "capacity": 4,
             "chunk_size": 1,
