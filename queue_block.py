@@ -177,7 +177,7 @@ class Queue(GroupBy, Block):
         return self._queue_locks[grp]
 
     def _start_emit_job(self):
-        if self.interval.total_seconds() >= 0:
+        if self.interval.total_seconds() > 0:
             self._emit_job = Job(
                 self.emit,
                 self.interval,
