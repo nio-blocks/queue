@@ -197,9 +197,12 @@ class Queue(GroupBy, Block):
 
     def _load(self):
         prev_queues = self.persistence.load('queues')
-        # if persisted dictonary is not defaultdict, convert it
         if prev_queues:
+            # If persisted dictonary is not defaultdict, convert it
             self._queues = defaultdict(list, prev_queues)
+            # Make sure perisisted queue capacity is less than current config
+            for queue_name, queue_values in self._queues.items():
+                self._queues[queue_name] = queue_values[:self.capacity]
         # build _groups for groupby mixin
         self._groups = list(self._queues.keys())
 

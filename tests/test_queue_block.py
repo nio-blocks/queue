@@ -1,4 +1,5 @@
-from unittest.mock import patch
+from collections import defaultdict
+from unittest.mock import MagicMock, patch
 from ..queue_block import Queue
 from nio.util.support.block_test_case import NIOBlockTestCase
 from nio.common.signal.base import Signal
@@ -338,3 +339,39 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(len(blk._queues['cherry']), 0)
         self.assertEqual(len(blk._queues['apple']), 0)
         blk.stop()
+
+    def _check_persisted_values(self, blk, persisted_queues):
+        blk.persistence.load.assert_called_once_with('queues')
+        # Make sure queues is a defaultdict
+        self.assertEqual(defaultdict, type(blk._queues))
+        # Check values of loaded queues
+        for queue_name, queue_values in persisted_queues.items():
+            self.assertEqual(queue_values[:blk.capacity],
+                             blk._queues[queue_name])
+            self.assertTrue(queue_name in blk._groups)
+
+    def test_load_persistence(self):
+        blk = Queue()
+        blk.persistence = MagicMock()
+        persisted_queues = defaultdict(list, {'a': [1], 'b': [2, 3]})
+        blk.persistence.load.return_value = persisted_queues
+        blk._load()
+        self._check_persisted_values(blk, persisted_queues)
+
+    def test_load_persistence_when_persisted_queues_is_dict(self):
+        blk = Queue()
+        blk.persistence = MagicMock()
+        persisted_queues = {'a': [1], 'b': [2, 3]}
+        blk.persistence.load.return_value = persisted_queues
+        blk._load()
+        self._check_persisted_values(blk, persisted_queues)
+
+    def test_load_persistence_when_capacity_config_shrinks(self):
+        blk = Queue()
+        blk.persistence = MagicMock()
+        # Use a smaller capacity than is loaded from persistence
+        blk.capacity = 1
+        persisted_queues = defaultdict(list, {'a': [1], 'b': [2, 3]})
+        blk.persistence.load.return_value = persisted_queues
+        blk._load()
+        self._check_persisted_values(blk, persisted_queues)

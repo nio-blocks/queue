@@ -9,7 +9,7 @@ If a *uniqueness* expression is set, then each queue will only contain signals t
 
 A negative *interval* means that signals will not be emitted at any interval. Instead, the *emit* command is the only way for the block to notify signals.
 
-Uses persistance to maintain queues between stopping and starting of the block.
+Uses persistance to maintain queues between stopping and starting of the block. If the *capacity* is configured smaller than the the persisted queues, then signals are removed from the back of the queue during block configure to get the queues down to the current configured capacity.
 
 Properties
 --------------
