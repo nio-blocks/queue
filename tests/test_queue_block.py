@@ -1,9 +1,11 @@
 from collections import defaultdict
+from threading import Event
 from unittest.mock import MagicMock, patch
+
+from nio.testing.block_test_case import NIOBlockTestCase
+from nio.signal.base import Signal
+
 from ..queue_block import Queue
-from nio.util.support.block_test_case import NIOBlockTestCase
-from nio.common.signal.base import Signal
-from nio.modules.threading import Event
 
 
 class EventSignal(Signal):
@@ -28,17 +30,7 @@ class EventFlavorSignal(Signal):
 
 class TestQueue(NIOBlockTestCase):
 
-    def setUp(self):
-        super().setUp()
-        self.last_notified = []
-
-    def signals_notified(self, signals, output_id='default'):
-        self.last_notified = signals
-        signals[0]._event.set()
-
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_emit(self, *back_patch):
+    def test_emit(self):
         e = Event()
         signals = [EventSignal(e)]
         blk = Queue()
@@ -53,13 +45,11 @@ class TestQueue(NIOBlockTestCase):
         blk.start()
         blk.process_signals(signals)
         e.wait(2)
-        self.assertEqual(len(blk._queues['null']), 0)
+        self.assertEqual(len(blk._queues[None]), 0)
         self.assert_num_signals_notified(1, blk)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_negative_interval(self, *back_patch):
+    def test_negative_interval(self):
         """ Don't emit signals on any interval when it is negative """
         e = Event()
         signals = [EventSignal(e)]
@@ -75,13 +65,11 @@ class TestQueue(NIOBlockTestCase):
         blk.start()
         blk.process_signals(signals)
         e.wait(1)
-        self.assertEqual(len(blk._queues['null']), 1)
+        self.assertEqual(len(blk._queues[None]), 1)
         self.assert_num_signals_notified(0, blk)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_zero_interval(self, *back_patch):
+    def test_zero_interval(self):
         """ Don't emit signals on any interval when it is zero """
         e = Event()
         signals = [EventSignal(e)]
@@ -97,15 +85,13 @@ class TestQueue(NIOBlockTestCase):
         blk.start()
         blk.process_signals(signals)
         e.wait(1)
-        self.assertEqual(len(blk._queues['null']), 1)
+        self.assertEqual(len(blk._queues[None]), 1)
         self.assert_num_signals_notified(0, blk)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_group_by(self, *back_patch):
+    def test_group_by(self):
         signals = [
-            EventSignal(),
+            FlavorSignal(None),
             FlavorSignal('apple'),
             FlavorSignal('cherry')
         ]
@@ -120,14 +106,12 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        self.assertEqual(len(blk._queues['null']), 1)
+        self.assertEqual(len(blk._queues[None]), 1)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_full(self, *back_patch):
+    def test_full(self):
         signals = [
             FlavorSignal('cherry'),
             FlavorSignal('umami')
@@ -137,19 +121,18 @@ class TestQueue(NIOBlockTestCase):
             "interval": {
                 "minutes": 1
             },
-            "capacity": 1
+            "capacity": 1,
+            "log_level": "DEBUG"
         }
 
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        self.assertEqual(len(blk._queues['null']), 1)
-        self.assertEqual(blk._queues['null'][0].flavor, 'umami')
+        self.assertEqual(len(blk._queues[None]), 1)
+        self.assertEqual(blk._queues[None][0].flavor, 'umami')
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_reload(self, *back_patch):
+    def test_reload(self):
         e1 = Event()
         e2 = Event()
         signals = [
@@ -176,9 +159,7 @@ class TestQueue(NIOBlockTestCase):
         self.assert_num_signals_notified(2, blk)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_unique(self, *back_patch):
+    def test_unique(self):
         signals = [
             FlavorSignal(flavor='apple'),
             FlavorSignal(flavor='cherry', meta='regular'),
@@ -195,13 +176,11 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        self.assertEqual(len(blk._queues['null']), 2)
-        self.assertEqual(blk._queues['null'][1].meta, 'regular')
+        self.assertEqual(len(blk._queues[None]), 2)
+        self.assertEqual(blk._queues[None][1].meta, 'regular')
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_unique_with_update(self, *back_patch):
+    def test_unique_with_update(self):
         signals = [
             FlavorSignal(flavor='apple'),
             FlavorSignal(flavor='cherry', meta='regular'),
@@ -219,13 +198,11 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        self.assertEqual(len(blk._queues['null']), 2)
-        self.assertEqual(blk._queues['null'][1].meta, 'sour')
+        self.assertEqual(len(blk._queues[None]), 2)
+        self.assertEqual(blk._queues[None][1].meta, 'sour')
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_all(self, *back_patch):
+    def test_all(self):
         e1 = Event()
         e2 = Event()
         e3 = Event()
@@ -258,11 +235,9 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(len(blk._queues['cherry']), 1)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_view_command(self, *back_patch):
+    def test_view_command(self):
         signals = [
-            EventSignal(),
+            FlavorSignal(None),
             FlavorSignal('apple'),
             FlavorSignal('cherry')
         ]
@@ -278,31 +253,29 @@ class TestQueue(NIOBlockTestCase):
         blk.start()
         blk.process_signals(signals)
         # view nothing from all groups
-        resp = blk.view('', 'null')
-        self.assertEqual(len(resp['groups']['null']['signals']), 0)
-        self.assertEqual(resp['groups']['null']['count'], 0)
+        resp = blk.view('', None)
+        self.assertEqual(len(resp['groups'][None]['signals']), 0)
+        self.assertEqual(resp['groups'][None]['count'], 0)
         self.assertEqual(resp['count'], 0)
         self.assertEqual(resp['query'], '')
-        # view 'null' group
-        resp = blk.view('{{ True }}', 'null')
-        self.assertEqual(len(resp['groups']['null']['signals']), 1)
-        self.assertEqual(resp['groups']['null']['count'], 1)
-        self.assertEqual(resp['count'], 1)
+        # viewing only None group is not possible because it becomes 'all'
+        resp = blk.view('{{ True }}', None)
+        self.assertEqual(len(resp['groups'][None]['signals']), 1)
+        self.assertEqual(resp['groups'][None]['count'], 1)
+        self.assertEqual(resp['count'], 3)
         self.assertEqual(resp['query'], '{{ True }}')
         # view all groups
         resp = blk.view('{{ True }}', '')
         self.assertEqual(resp['count'], 3)
         self.assertEqual(resp['query'], '{{ True }}')
-        self.assertEqual(len(blk._queues['null']), 1)
+        self.assertEqual(len(blk._queues[None]), 1)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
         blk.stop()
 
-    @patch.object(Queue, '_load')
-    @patch.object(Queue, '_backup')
-    def test_remove_command(self, *back_patch):
+    def test_remove_command(self):
         signals = [
-            EventSignal(),
+            FlavorSignal(None),
             FlavorSignal('apple'),
             FlavorSignal('cherry')
         ]
@@ -317,61 +290,54 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        # don't remove anything from null
-        resp = blk.remove('', 'null')
-        self.assertEqual(len(resp['groups']['null']['signals']), 0)
-        self.assertEqual(resp['groups']['null']['count'], 0)
+        # don't remove anything from None
+        resp = blk.remove('', None)
+        self.assertEqual(len(resp['groups'][None]['signals']), 0)
+        self.assertEqual(resp['groups'][None]['count'], 0)
         self.assertEqual(resp['count'], 0)
         self.assertEqual(resp['query'], '')
-        self.assertEqual(len(blk._queues['null']), 1)
-        # removing everyting from null
-        resp = blk.remove('{{ True }}', 'null')
-        self.assertEqual(len(resp['groups']['null']['signals']), 1)
-        self.assertEqual(resp['groups']['null']['count'], 1)
+        self.assertEqual(len(blk._queues[None]), 1)
+        # remove 'apple' group
+        resp = blk.remove('{{ True }}', 'apple')
+        self.assertEqual(len(resp['groups']['apple']['signals']), 1)
+        self.assertEqual(resp['groups']['apple']['count'], 1)
         self.assertEqual(resp['count'], 1)
         self.assertEqual(resp['query'], '{{ True }}')
-        self.assertEqual(len(blk._queues['null']), 0)
+        self.assertEqual(len(blk._queues['apple']), 0)
         # remove everything from all groups
         resp = blk.remove('{{ True }}', '')
         self.assertEqual(resp['count'], 2)
         self.assertEqual(resp['query'], '{{ True }}')
-        self.assertEqual(len(blk._queues['null']), 0)
+        self.assertEqual(len(blk._queues[None]), 0)
         self.assertEqual(len(blk._queues['cherry']), 0)
         self.assertEqual(len(blk._queues['apple']), 0)
         blk.stop()
 
     def _check_persisted_values(self, blk, persisted_queues):
-        blk.persistence.load.assert_called_once_with('queues')
+        blk._load.assert_called_once_with()
         # Make sure queues is a defaultdict
         self.assertEqual(defaultdict, type(blk._queues))
         # Check values of loaded queues
         for queue_name, queue_values in persisted_queues.items():
-            self.assertEqual(queue_values[:blk.capacity],
+            self.assertEqual(queue_values[:blk.capacity()],
                              blk._queues[queue_name])
             self.assertTrue(queue_name in blk._groups)
 
     def test_load_persistence(self):
         blk = Queue()
-        blk.persistence = MagicMock()
         persisted_queues = defaultdict(list, {'a': [1], 'b': [2, 3]})
-        blk.persistence.load.return_value = persisted_queues
-        blk._load()
-        self._check_persisted_values(blk, persisted_queues)
-
-    def test_load_persistence_when_persisted_queues_is_dict(self):
-        blk = Queue()
-        blk.persistence = MagicMock()
-        persisted_queues = {'a': [1], 'b': [2, 3]}
-        blk.persistence.load.return_value = persisted_queues
-        blk._load()
+        def side_effect():
+            blk._queues = persisted_queues
+        blk._load = MagicMock(side_effect=side_effect)
+        self.configure_block(blk, {})
         self._check_persisted_values(blk, persisted_queues)
 
     def test_load_persistence_when_capacity_config_shrinks(self):
         blk = Queue()
-        blk.persistence = MagicMock()
-        # Use a smaller capacity than is loaded from persistence
-        blk.capacity = 1
         persisted_queues = defaultdict(list, {'a': [1], 'b': [2, 3]})
-        blk.persistence.load.return_value = persisted_queues
-        blk._load()
+        def side_effect():
+            blk._queues = persisted_queues
+        blk._load = MagicMock(side_effect=side_effect)
+        # Use a smaller capacity than is loaded from persistence
+        self.configure_block(blk, {"capacity": 1})
         self._check_persisted_values(blk, persisted_queues)

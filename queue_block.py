@@ -1,17 +1,18 @@
 import json
 from collections import defaultdict
 from datetime import timedelta
-from nio.common.block.base import Block
-from nio.common.command import command
-from nio.common.discovery import Discoverable, DiscoverableType
-from nio.metadata.properties import IntProperty, BoolProperty, PropertyHolder, \
-    ExpressionProperty, ObjectProperty,StringProperty, TimeDeltaProperty
-from nio.common.command.params.string import StringParameter
-from nio.common.command.params.dict import DictParameter
+from nio.block.base import Block
+from nio.command import command
+from nio.util.discovery import discoverable
+from nio.properties import IntProperty, BoolProperty, PropertyHolder, \
+    Property, ObjectProperty,StringProperty, TimeDeltaProperty
+from nio.command.params.string import StringParameter
+from nio.command.params.dict import DictParameter
 from nio.modules.scheduler import Job
-from nio.modules.threading import Lock
-from nio.metadata.properties.expression import Evaluator
-from .mixins.group_by.group_by_block import GroupBy
+from threading import Lock
+from nio.properties.util.evaluator import Evaluator
+from nio.block.mixins.group_by.group_by import GroupBy
+from nio.block.mixins.persistence.persistence import Persistence
 
 
 @command("update_props", DictParameter("props", default=''))
@@ -22,8 +23,8 @@ from .mixins.group_by.group_by_block import GroupBy
          StringParameter("query", default=''),
          StringParameter("group", default=''))
 @command("emit")
-@Discoverable(DiscoverableType.block)
-class Queue(GroupBy, Block):
+@discoverable
+class Queue(Persistence, GroupBy, Block):
     """ Queue block.
 
     A NIO block for queueing up signals. As signals pile up,
@@ -36,53 +37,48 @@ class Queue(GroupBy, Block):
     applies to *each* such queue, not the block as a whole.
 
     """
-    version = StringProperty(default='1.0')
-    interval = TimeDeltaProperty(title='Notification Interval')
-    backup_interval = TimeDeltaProperty(title='Backup Interval',
-                                        visible=False,
-                                        default={"minutes": 10})
+    interval = TimeDeltaProperty(title='Notification Interval',
+                                 allow_none=True)
     capacity = IntProperty(default=100, title='Capacity')
-    group_by = ExpressionProperty(default='null', attr_default='null', title='Group By')
     chunk_size = IntProperty(default=1, title='Chunk Size')
     reload = BoolProperty(default=False, title='Auto-Reload?')
-    uniqueness = ExpressionProperty(title='Queue Uniqueness Expression',
-                                    attr_default=None)
+    uniqueness = Property(title='Queue Uniqueness Expression',
+                          allow_none=True,
+                          default=None)
     update = BoolProperty(title='Update Non-Unique Signals', default=False)
+
+    def persisted_values(self):
+        return ["_queues"]
 
     def __init__(self):
         super().__init__()
         self._queues = defaultdict(list)
-        self._queue_locks = {
-            'null': Lock()
-        }
+        self._queue_locks = defaultdict(Lock)
         self._meta_lock = Lock()
         self._emit_job = None
-        self._backup_job = None
 
     def configure(self, context):
         super().configure(context)
-        self._load()
+        # Make sure perisisted queue capacity is less than current config
+        for queue_name, queue_values in self._queues.items():
+            self._queues[queue_name] = queue_values[:self.capacity()]
+        # build _groups for groupby mixin
+        self._groups = set(self._queues.keys())
 
     def start(self):
         super().start()
         self._start_emit_job()
-        self._backup_job = Job(
-            self._backup,
-            self.backup_interval,
-            True
-        )
 
     def stop(self):
         if self._emit_job is not None:
             self._emit_job.cancel()
-        self._backup_job.cancel()
-        self._backup()
+        super().stop()
 
     def process_signals(self, signals):
-        self._logger.debug("Processing {} signals".format(len(signals)))
+        self.logger.debug("Processing {} signals".format(len(signals)))
         self.for_each_group(self._push_group, signals)
 
-    def pop(self, grp="null"):
+    def pop(self, grp):
         ''' Remove the top n signals from the specified queue.
 
         Args:
@@ -94,19 +90,19 @@ class Queue(GroupBy, Block):
             top_n (list): 'Count' signals from the front of the queue.
 
         '''
-        count = self.chunk_size
-        reload = self.reload
+        count = self.chunk_size()
+        reload = self.reload()
         # lock the queue we're popping from
-        self._logger.debug("pop: {} {} {}".format(grp, count, reload))
+        self.logger.debug("pop: {} {} {}".format(grp, count, reload))
         with self._get_lock(grp):
             # check out the front of the queue
             top_n = self._queues[grp][0:count]
-            self._logger.debug(
+            self.logger.debug(
                 "Removing %d signals from %s_queue" % (len(top_n), grp))
             self._queues[grp][:] = self._queues[grp][len(top_n):]
             # If reloading, put signal back on queue.
             if reload:
-                self._logger.debug("Reloading {}_queue".format(grp))
+                self.logger.debug("Reloading {}_queue".format(grp))
                 self._queues[grp].extend(top_n)
         return top_n
 
@@ -126,11 +122,11 @@ class Queue(GroupBy, Block):
         # check for uniqueness if property is set
         try:
             unique_val = self.uniqueness(signal)
-            self._logger.debug(
+            self.logger.debug(
                 "Testing uniqueness for signal: {}".format(unique_val))
         except Exception as e:
             unique_val = None
-            self._logger.warning(
+            self.logger.warning(
                 "Uniqueness expression failed. Using value of None.")
 
         if unique_val is not None:
@@ -140,23 +136,23 @@ class Queue(GroupBy, Block):
                 except Exception as e:
                     sig_val = None
                 if sig_val == unique_val:
-                    self._logger.debug(
+                    self.logger.debug(
                         "Signal {} already in {}_queue".format(sig_val, grp)
                     )
-                    if self.update:
+                    if self.update():
                        queue[idx] = signal
                     return
 
         # pop one off the top of that queue if it's at capacity
-        if len(queue) == self.capacity:
-            self._logger.debug(
+        if len(queue) == self.capacity():
+            self.logger.debug(
                 "Pushing signal and capactity of {}_signal is full: {}".format(
-                    grp, self.capacity
+                    grp, self.capacity()
                 )
             )
             queue.pop(0)
 
-        self._logger.debug("Appending signal to {}_queue".format(grp))
+        self.logger.debug("Appending signal to {}_queue".format(grp))
         queue.append(signal)
 
     def _push_group(self, signals, group):
@@ -165,7 +161,7 @@ class Queue(GroupBy, Block):
             for signal in signals:
                 self.push(signal, group)
 
-    def _get_lock(self, grp="null"):
+    def _get_lock(self, grp):
         ''' Returns the lock for a particular queue.
 
         Note that we're maintaining a synchronized dictionary of locks
@@ -177,10 +173,12 @@ class Queue(GroupBy, Block):
         return self._queue_locks[grp]
 
     def _start_emit_job(self):
-        if self.interval.total_seconds() > 0:
+        ''' Start job that emits signals from the queue '''
+        if self.interval() and self.interval().total_seconds() > 0:
+            # only schedule if the interval is a positive number
             self._emit_job = Job(
                 self.emit,
-                self.interval,
+                self.interval(),
                 True
             )
 
@@ -190,34 +188,10 @@ class Queue(GroupBy, Block):
         '''
         signals_to_notify = self.for_each_group(self.pop)
         if signals_to_notify:
-            self._logger.debug(
+            self.logger.debug(
                 "Notifying {} signals".format(len(signals_to_notify))
             )
             self.notify_signals(signals_to_notify)
-
-    def _load(self):
-        prev_queues = self.persistence.load('queues')
-        if prev_queues:
-            # If persisted dictonary is not defaultdict, convert it
-            self._queues = defaultdict(list, prev_queues)
-            # Make sure perisisted queue capacity is less than current config
-            for queue_name, queue_values in self._queues.items():
-                self._queues[queue_name] = queue_values[:self.capacity]
-        # build _groups for groupby mixin
-        self._groups = list(self._queues.keys())
-
-    def _backup(self):
-        ''' Persist the current state of the queues using the persistence module.
-
-        '''
-        # store the serialized signals and save to disk
-        # grab the meta_lock so nobody else can interact with the queues during
-        # serialization
-        self._logger.debug("Persistence: backing up to file")
-        self._meta_lock.acquire()
-        self.persistence.store("queues", self._queues)
-        self._meta_lock.release()
-        self.persistence.save()
 
     def _inspect_group(self, response, group):
         response_group = {'count': 0, 'signals': []}
@@ -225,7 +199,7 @@ class Queue(GroupBy, Block):
         ignored_signals = []
         for signal in self._queues.get(group, []):
             try:
-                eval = Evaluator(query, None).evaluate(signal)
+                eval = Evaluator(query).evaluate(signal)
             except:
                 eval = False
             if eval:
@@ -242,7 +216,7 @@ class Queue(GroupBy, Block):
 
         If no group parameter is specified, all queues are returned.
         '''
-        self._logger.debug("Command: view")
+        self.logger.debug("Command: view")
         response = {}
         response['query'] = query
         response['group'] = group
@@ -255,7 +229,7 @@ class Queue(GroupBy, Block):
         elif not group:
             # if no group is specifed in params return all groups
             self.for_each_group(self._view_group,
-                                kwargs={'response': response})
+                                **{'response': response})
 
         return response
 
@@ -269,7 +243,7 @@ class Queue(GroupBy, Block):
         Signals are not notified.
 
         '''
-        self._logger.debug("Command: remove")
+        self.logger.debug("Command: remove")
         response = {}
         response['query'] = query
         response['group'] = group
@@ -282,8 +256,7 @@ class Queue(GroupBy, Block):
         elif not group:
             # if no group is specifed in params return all groups
             self.for_each_group(self._remove_from_group,
-                                kwargs={'response': response,
-                                        'query': query})
+                                **{'response': response, 'query': query})
 
         return response
 
@@ -300,7 +273,7 @@ class Queue(GroupBy, Block):
         job is started.
 
         '''
-        self._logger.debug("Command: update_props")
+        self.logger.debug("Command: update_props")
         response = {}
 
         if props is None or not isinstance(props, dict):
@@ -324,7 +297,7 @@ class Queue(GroupBy, Block):
                 self._emit_job.cancel()
             self._start_emit_job()
             self.interval = interval
-            self._logger.info('Interval has been updated to {}'.format(interval))
+            self.logger.info('Interval has been updated to {}'.format(interval))
         elif interval:
             response['message'] = "'interval' needs to be a timedelta dict: {}".format(interval)
 
