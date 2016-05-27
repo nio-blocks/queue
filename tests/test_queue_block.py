@@ -180,6 +180,20 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(blk._queues[None][1].meta, 'regular')
         blk.stop()
 
+    def test_unique_with_default_config(self):
+        signals = [
+            FlavorSignal(flavor='apple'),
+            FlavorSignal(flavor='cherry', meta='regular'),
+            FlavorSignal(flavor='cherry', meta='sour')
+        ]
+        blk = Queue()
+        self.configure_block(blk, {})
+        blk.start()
+        blk.process_signals(signals)
+        self.assertEqual(len(blk._queues[None]), 3)
+        self.assertEqual(blk._queues[None][1].meta, 'regular')
+        blk.stop()
+
     def test_unique_with_update(self):
         signals = [
             FlavorSignal(flavor='apple'),

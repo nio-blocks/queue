@@ -44,7 +44,7 @@ class Queue(Persistence, GroupBy, Block):
     reload = BoolProperty(default=False, title='Auto-Reload?')
     uniqueness = Property(title='Queue Uniqueness Expression',
                           allow_none=True,
-                          default=None)
+                          default="{{ None }}")
     update = BoolProperty(title='Update Non-Unique Signals', default=False)
 
     def persisted_values(self):
