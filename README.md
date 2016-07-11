@@ -28,7 +28,6 @@ None
 
 Commands
 ----------------
-Use the nio_command block to issue the following commands:
 -   **emit**: Notify signals off the end of the queues.
 -   **remove** (query="", group=""): Remove signals from the queue *group* where *query* evaluates to True. *query* uses the Expression Property syntax for evaluatuation. For example, to remove all signals, use `{{True}}` or to remove signals with *val* equal to 1 use `{{$val == 1}}`. If no *group* is specified, then all groups are inspected. Signals are not notified.
 -   **view** (query="", group=""): View signals in the queue *group*. If *group* is not specified, all signals in all queues are returned. Signals are not notified.
