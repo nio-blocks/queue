@@ -9,16 +9,16 @@ If a *uniqueness* expression is set, then each queue will only contain signals t
 
 A negative *interval* means that signals will not be emitted at any interval. Instead, the *emit* command is the only way for the block to notify signals.
 
-The block uses persistance to maintain queues between stopping and starting of the block. If the *capacity* is configured smaller than the the persisted queues, then signals are removed from the back of the queue during block configure to get the queues down to the current configured capacity.
+The block uses persistence to maintain queues between stopping and starting of the block. If the *capacity* is configured smaller than the the persisted queues, then signals are removed from the back of the queue during block configure to get the queues down to the current configured capacity.
 
 Properties
 --------------
 
 -   **capacity**: Size of each queue. When queue exceeds capacity, a signal is popped off the front end and *not* notified.
--   **group_by**: Signal attribute that determines what queue to put the signal in. Defaults to group 'null' if attribute does not exist or *group_by* is unspecified.
+-   **group_by**: Signal attribute that determines what queue to put the signal in. Defaults to group `null` if attribute does not exist or *group_by* is unspecified.
 -   **chunk_size**: Number of signals to notify each *interval* period and *emit* command.
 -   **interval**: Period at which signals are notified from queues.
--   **backup_interval**: Period at which queues are backed up to disk using persistance. Queues are also backed up on stop.
+-   **backup_interval**: Period at which queues are backed up to disk using persistence. Queues are also backed up on stop.
 -   **auto-reload** (default=False): If True, notified signals immediately get reloaded back onto the end of the queue they came off of.
 -   **uniqueness**: Expression Property. If specified, each queue group (i.e. *group_by*) will not allow multiple signals that evaluate to the same *uniqueness*. If an incoming signal matches *group_by* and *uniqueness* with a signal already in the queue, then the new signal is dropped.
 
