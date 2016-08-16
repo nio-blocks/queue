@@ -304,6 +304,7 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
+
         # don't remove anything from None
         resp = blk.remove('', None)
         self.assertEqual(len(resp['groups'][None]['signals']), 0)
@@ -311,20 +312,23 @@ class TestQueue(NIOBlockTestCase):
         self.assertEqual(resp['count'], 0)
         self.assertEqual(resp['query'], '')
         self.assertEqual(len(blk._queues[None]), 1)
+        self.assertTrue(None in blk._groups)
+
         # remove 'apple' group
         resp = blk.remove('{{ True }}', 'apple')
         self.assertEqual(len(resp['groups']['apple']['signals']), 1)
         self.assertEqual(resp['groups']['apple']['count'], 1)
         self.assertEqual(resp['count'], 1)
         self.assertEqual(resp['query'], '{{ True }}')
-        self.assertEqual(len(blk._queues['apple']), 0)
+        self.assertFalse('apple' in blk._groups)
+        self.assertFalse('apple' in blk._queues)
+
         # remove everything from all groups
         resp = blk.remove('{{ True }}', '')
         self.assertEqual(resp['count'], 2)
         self.assertEqual(resp['query'], '{{ True }}')
-        self.assertEqual(len(blk._queues[None]), 0)
-        self.assertEqual(len(blk._queues['cherry']), 0)
-        self.assertEqual(len(blk._queues['apple']), 0)
+        self.assertEqual(len(blk._queues), 0)
+        self.assertEqual(len(blk._groups), 0)
         blk.stop()
 
     def _check_persisted_values(self, blk, persisted_queues):
