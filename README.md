@@ -35,7 +35,7 @@ Commands
 
 Input
 -------
-Any list of signals. If *group_by* is used, then that attribute is expected to be on the incoming signals. Otherweise signals go to default 'null' group.
+Any list of signals. If *group_by* is used, then that attribute is expected to be on the incoming signals. Otherwise, signals go to default `null` group.
 
 Output
 ---------
