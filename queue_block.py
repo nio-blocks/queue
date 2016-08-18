@@ -257,14 +257,26 @@ class Queue(Persistence, GroupBy, Block):
             # if no group is specifed in params return all groups
             self.for_each_group(self._remove_from_group,
                                 **{'response': response, 'query': query})
-
         return response
 
     def _remove_from_group(self, group, response, query):
         with self._get_lock(group):
             response, signals = self._inspect_group(response, group)
-            # signals that don't match the query stay in the queue.
-            self._queues[group] = signals
+            # signals that don't match the query stay in the queue, but if
+            # there are no signals remaining, delete the entire queue.
+            if len(signals) > 0:
+                self._queues[group] = signals
+            else:
+                # _queues is a dict with keys that make up the set _groups.
+                # These must be kept in sync when removing keys in order to
+                # maintain the true state of the block. If these objects are
+                # not synced, a "view" or "remove" command for all groups will
+                # show that groups which have previously been expired are still
+                # present, due to the for_each_group() call, which uses the
+                # _groups set to iterate over the groups.
+                self.logger.debug("Deleting empty queue {}.".format(group))
+                self._queues.pop(group, None)
+                self._groups.remove(group)
 
     def update_props(self, props):
         ''' Updates the *interval* property.
