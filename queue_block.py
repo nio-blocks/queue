@@ -1,18 +1,18 @@
 import json
 from collections import defaultdict
 from datetime import timedelta
-from nio.block.base import Block
-from nio.command import command
-from nio.util.discovery import discoverable
-from nio.properties import IntProperty, BoolProperty, PropertyHolder, \
-    Property, ObjectProperty,StringProperty, TimeDeltaProperty
-from nio.command.params.string import StringParameter
-from nio.command.params.dict import DictParameter
-from nio.modules.scheduler import Job
 from threading import Lock
-from nio.properties.util.evaluator import Evaluator
+
+from nio.block.base import Block
 from nio.block.mixins.group_by.group_by import GroupBy
 from nio.block.mixins.persistence.persistence import Persistence
+from nio.command import command
+from nio.command.params.dict import DictParameter
+from nio.command.params.string import StringParameter
+from nio.modules.scheduler import Job
+from nio.properties import IntProperty, BoolProperty, \
+    Property, TimeDeltaProperty
+from nio.properties.util.evaluator import Evaluator
 
 
 @command("update_props", DictParameter("props", default=''))
@@ -23,7 +23,6 @@ from nio.block.mixins.persistence.persistence import Persistence
          StringParameter("query", default=''),
          StringParameter("group", default=''))
 @command("emit")
-@discoverable
 class Queue(Persistence, GroupBy, Block):
     """ Queue block.
 
