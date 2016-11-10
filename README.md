@@ -21,7 +21,7 @@ Properties
 -   **backup_interval**: Period at which queues are backed up to disk using persistance. Queues are also backed up on stop.
 -   **reload** (default=`False`): If `True`, notified signals immediately get reloaded back onto the end of the queue they came off of.
 -   **uniqueness**: Expression Property. If specified, each queue (i.e. `group_by`) will not allow multiple signals that evaluate to the same `uniqueness`. If a signal comes in that matches `group_by` and `uniqueness` with a signal already in the queue, then it the new signal dropped.
--   **update**: 
+-   **update**: If `True` and a uniqueness expression is set, incoming signals that would have been rejected by the uniqueness expression instead replace the signal that was competing with the incoming signal for uniqueness.
 
 Dependencies
 ----------------
