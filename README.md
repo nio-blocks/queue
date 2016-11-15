@@ -1,15 +1,15 @@
 Queue
 ===========
 
-A NIO block for queueing up signals. As signals pile up, the Queue block releases a configurable `chunk_size` at a configurable `interval`. If incoming signals would overflow the queue, signals are popped off the front end as needed. These overflow signals are simply dropped, not notified and sent to the next block.
+A NIO block for queueing up signals. As signals pile up, the Queue block notifies a configurable `chunk_size` of signals in the queue at a configurable time `interval`. If incoming signals would overflow the queue, signals are popped off the front end as needed. These overflow signals are simply dropped, not notified and sent to the next block.
 
-If a `group_by` string is configured, incoming signals are divided and grouped by the value of that attribute. The configured capacity applies to *each* such queue, not the block as a whole.
+If a `group_by` string is configured, incoming signals are put into groups based on the value of `group_by`, which should be an expected attribute of the incoming signals. The configured `capacity` applies to *each* such group, not the block as a whole. If no `group_by` is set, there is only one "group"/one queue.
 
-If a `uniqueness` expression is set, then each queue will only contain signals that are unique according to the expression. If a signal is to be appended to the queue that matches a signal already in the queue, then it will be dropped.
+If a `uniqueness` expression is set, then each group will only contain signals that are unique according to the expression. If a signal is to be appended to the group that matches a signal already in the group, then it will be dropped.
 
 A negative `interval` means that signals will not be emitted at any interval. Instead, the `emit` command is the only way for the block to notify signals.
 
-Uses persistance to maintain queues between stopping and starting of the block. If the `capacity` is configured smaller than the the persisted queues, then signals are removed from the back of the queue during block configure to get the queues down to the current configured `capacity`.
+Uses persistance to maintain queues/groups between stopping and starting of the block. If the `capacity` is configured smaller than the the persisted queues, then signals are removed from the back of the queue during block configure to get the queues down to the current configured `capacity`.
 
 Properties
 --------------
@@ -21,6 +21,7 @@ Properties
 -   **backup_interval**: Period at which queues are backed up to disk using persistance. Queues are also backed up on stop.
 -   **reload** (default=`False`): If `True`, notified signals immediately get reloaded back onto the end of the queue they came off of.
 -   **uniqueness**: Expression Property. If specified, each queue (i.e. `group_by`) will not allow multiple signals that evaluate to the same `uniqueness`. If a signal comes in that matches `group_by` and `uniqueness` with a signal already in the queue, then it the new signal dropped.
+-   **update**: If `True` and a uniqueness expression is set, incoming signals that would have been rejected by the uniqueness expression instead replace the signal that was competing with the incoming signal for uniqueness.
 
 Dependencies
 ----------------
