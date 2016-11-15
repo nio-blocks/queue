@@ -12,6 +12,7 @@ from nio.command.params.string import StringParameter
 from nio.modules.scheduler import Job
 from nio.properties import IntProperty, BoolProperty, \
     Property, TimeDeltaProperty
+from nio.properties import VersionProperty
 from nio.properties.util.evaluator import Evaluator
 
 
@@ -36,6 +37,7 @@ class Queue(Persistence, GroupBy, Block):
     applies to *each* such queue, not the block as a whole.
 
     """
+    version = VersionProperty('1.0.0')
     interval = TimeDeltaProperty(title='Notification Interval',
                                  allow_none=True)
     capacity = IntProperty(default=100, title='Capacity')
