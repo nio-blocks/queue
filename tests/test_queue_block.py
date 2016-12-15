@@ -153,10 +153,10 @@ class TestQueue(NIOBlockTestCase):
         blk.process_signals(signals)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
-        e1.wait(2)
+        e1.wait(2.5)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
-        self.assert_num_signals_notified(2, blk)
+        self.assert_num_signals_notified(4, blk)
         blk.stop()
 
     def test_unique(self):
