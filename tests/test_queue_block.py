@@ -1,6 +1,5 @@
 from collections import defaultdict
-from threading import Event
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from nio.testing.block_test_case import NIOBlockTestCase
 from nio.signal.base import Signal
@@ -9,24 +8,11 @@ from nio.testing.modules.scheduler.scheduler import JumpAheadScheduler
 from ..queue_block import Queue
 
 
-class EventSignal(Signal):
-    def __init__(self, event=None):
-        super().__init__()
-        self._event = event or Event()
-
-
 class FlavorSignal(Signal):
     def __init__(self, flavor, meta='regular'):
         super().__init__()
         self.flavor = flavor
         self.meta = meta
-
-
-class EventFlavorSignal(Signal):
-    def __init__(self, flavor, event=None):
-        super().__init__()
-        self._event = event or Event()
-        self.flavor = flavor
 
 
 class TestQueue(NIOBlockTestCase):
