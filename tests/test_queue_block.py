@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from nio.testing.block_test_case import NIOBlockTestCase
 from nio.signal.base import Signal
+from nio.testing.modules.scheduler.scheduler import JumpAheadScheduler
 
 from ..queue_block import Queue
 
@@ -31,8 +32,7 @@ class EventFlavorSignal(Signal):
 class TestQueue(NIOBlockTestCase):
 
     def test_emit(self):
-        e = Event()
-        signals = [EventSignal(e)]
+        signals = [Signal({})]
         blk = Queue()
         config = {
             "interval": {
@@ -44,15 +44,16 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        e.wait(2)
+        JumpAheadScheduler.jump_ahead(2)
+
+        # queue should be empty and only the input signal should be notified
         self.assertEqual(len(blk._queues[None]), 0)
         self.assert_num_signals_notified(1, blk)
         blk.stop()
 
     def test_negative_interval(self):
         """ Don't emit signals on any interval when it is negative """
-        e = Event()
-        signals = [EventSignal(e)]
+        signals = [Signal({})]
         blk = Queue()
         config = {
             "interval": {
@@ -64,15 +65,16 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        e.wait(1)
+        JumpAheadScheduler.jump_ahead(2)
+
+        # signal should still be in the queue, and no signals notified
         self.assertEqual(len(blk._queues[None]), 1)
         self.assert_num_signals_notified(0, blk)
         blk.stop()
 
     def test_zero_interval(self):
         """ Don't emit signals on any interval when it is zero """
-        e = Event()
-        signals = [EventSignal(e)]
+        signals = [Signal({})]
         blk = Queue()
         config = {
             "interval": {
@@ -84,7 +86,9 @@ class TestQueue(NIOBlockTestCase):
         self.configure_block(blk, config)
         blk.start()
         blk.process_signals(signals)
-        e.wait(1)
+        JumpAheadScheduler.jump_ahead(2)
+
+        # signal should still be in the queue, and no signals notified
         self.assertEqual(len(blk._queues[None]), 1)
         self.assert_num_signals_notified(0, blk)
         blk.stop()
@@ -133,11 +137,9 @@ class TestQueue(NIOBlockTestCase):
         blk.stop()
 
     def test_reload(self):
-        e1 = Event()
-        e2 = Event()
         signals = [
-            EventFlavorSignal(flavor='apple', event=e1),
-            EventFlavorSignal(flavor='cherry', event=e2)
+            FlavorSignal(flavor='apple'),
+            FlavorSignal(flavor='cherry')
         ]
         blk = Queue()
         config = {
@@ -153,7 +155,7 @@ class TestQueue(NIOBlockTestCase):
         blk.process_signals(signals)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
-        e1.wait(2.5)
+        JumpAheadScheduler.jump_ahead(2.5)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
         self.assert_num_signals_notified(4, blk)
@@ -217,15 +219,11 @@ class TestQueue(NIOBlockTestCase):
         blk.stop()
 
     def test_all(self):
-        e1 = Event()
-        e2 = Event()
-        e3 = Event()
-        e4 = Event()
         signals = [
-            EventFlavorSignal(flavor='apple', event=e1),
-            EventFlavorSignal(flavor='cherry', event=e2),
-            EventFlavorSignal(flavor='cherry', event=e2),
-            EventFlavorSignal(flavor='cherry', event=e4)
+            FlavorSignal(flavor='apple'),
+            FlavorSignal(flavor='cherry'),
+            FlavorSignal(flavor='cherry'),
+            FlavorSignal(flavor='cherry')
         ]
         blk = Queue()
         config = {
@@ -242,7 +240,7 @@ class TestQueue(NIOBlockTestCase):
         blk.process_signals(signals)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
-        e1.wait(2)
+        JumpAheadScheduler.jump_ahead(2)
         self.assertEqual(len(blk._queues['cherry']), 1)
         self.assertEqual(len(blk._queues['apple']), 1)
         blk.process_signals([FlavorSignal('cherry')])
