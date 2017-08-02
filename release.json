@@ -1,0 +1,7 @@
+{
+  "nio/Queue": {
+    "language": "Python",
+    "version": "0.0.1",
+    "reference": "github.com/nio-blocks/queue.git@v0.0.1"
+  }
+}
