@@ -328,6 +328,7 @@ class TestQueue(NIOBlockTestCase):
     def test_load_persistence(self):
         blk = Queue()
         persisted_queues = defaultdict(list, {'a': [1], 'b': [2, 3]})
+
         def side_effect():
             blk._queues = persisted_queues
         blk._load = MagicMock(side_effect=side_effect)
@@ -337,6 +338,7 @@ class TestQueue(NIOBlockTestCase):
     def test_load_persistence_when_capacity_config_shrinks(self):
         blk = Queue()
         persisted_queues = defaultdict(list, {'a': [1], 'b': [2, 3]})
+
         def side_effect():
             blk._queues = persisted_queues
         blk._load = MagicMock(side_effect=side_effect)

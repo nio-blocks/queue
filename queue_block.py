@@ -11,8 +11,7 @@ from nio.command.params.dict import DictParameter
 from nio.command.params.string import StringParameter
 from nio.modules.scheduler import Job
 from nio.properties import IntProperty, BoolProperty, \
-    Property, TimeDeltaProperty
-from nio.properties import VersionProperty
+    Property, TimeDeltaProperty, VersionProperty
 from nio.properties.util.evaluator import Evaluator
 
 
@@ -141,7 +140,7 @@ class Queue(Persistence, GroupBy, Block):
                         "Signal {} already in {}_queue".format(sig_val, grp)
                     )
                     if self.update():
-                       queue[idx] = signal
+                        queue[idx] = signal
                     return
 
         # pop one off the top of that queue if it's at capacity
@@ -204,9 +203,14 @@ class Queue(Persistence, GroupBy, Block):
             except:
                 eval = False
             if eval:
-                response_group['signals'].append(json.loads(json.dumps(signal.to_dict(), indent=4, separators=(',', ': '), default=str)))
+                response_group['signals'].append(
+                    json.loads(json.dumps(
+                        signal.to_dict(),
+                        indent=4, separators=(',', ': '),
+                        default=str))
+                )
                 response_group['count'] += 1
-                response['count'] +=1
+                response['count'] += 1
             else:
                 ignored_signals.append(signal)
         response['groups'][group] = response_group
@@ -297,8 +301,8 @@ class Queue(Persistence, GroupBy, Block):
         # Update *interval*.
         interval = props.get('interval')
         if interval and isinstance(interval, dict) and \
-                (interval.get('days') or interval.get('seconds') \
-                 or interval.get('microseconds')):
+                (interval.get('days') or
+                 interval.get('seconds') or interval.get('microseconds')):
             days = interval.get('days', 0)
             seconds = interval.get('seconds', 0)
             microseconds = interval.get('microseconds', 0)
@@ -310,8 +314,10 @@ class Queue(Persistence, GroupBy, Block):
                 self._emit_job.cancel()
             self._start_emit_job()
             self.interval = interval
-            self.logger.info('Interval has been updated to {}'.format(interval))
+            self.logger.info(
+                'Interval has been updated to {}'.format(interval))
         elif interval:
-            response['message'] = "'interval' needs to be a timedelta dict: {}".format(interval)
+            response['message'] = \
+                "'interval' needs to be a timedelta dict: {}".format(interval)
 
         return response
