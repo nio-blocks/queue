@@ -1,10 +1,124 @@
 {
   "nio/Queue": {
-    "version": "0.0.1",
-    "description": "",
-    "inputs": {},
-    "outputs": {},
-    "properties": {},
-    "commands": {}
+    "version": "1.0.0",
+    "description": "A NIO block for queueing up signals. As signals pile up, the Queue block notifies a configurable `chunk_size` of signals in the queue at a configurable time `interval`. If incoming signals would overflow the queue, signals are popped off the front end as needed. These overflow signals are simply dropped, not notified and sent to the next block.",
+    "properties": {
+      "backup_interval": {
+        "title": "Backup Interval",
+        "type": "TimeDeltaType",
+        "description": "Period at which queues are backed up to disk using persistance. Queues are also backed up on stop.",
+        "default": {
+          "seconds": 3600
+        }
+      },
+      "capacity": {
+        "title": "Capacity",
+        "type": "IntType",
+        "description": "Size of each queue. When queue exceeds `capacity`, a signal is popped off the front end and *not* notified.",
+        "default": 100
+      },
+      "chunk_size": {
+        "title": "Chunk Size",
+        "type": "IntType",
+        "description": "Number of signals to notify each `interval` period and `emit` command.",
+        "default": 1
+      },
+      "group_by": {
+        "title": "Group By",
+        "type": "Type",
+        "description": "Signal attribute that determines what queue to put the signal in. Defaults to group `null` if attribute does not exist or `group_by` is unspecified.",
+        "default": null
+      },
+      "interval": {
+        "title": "Notification Interval",
+        "type": "TimeDeltaType",
+        "description": "Period at which signals are notified from queues.",
+        "default": null
+      },
+      "load_from_persistence": {
+        "title": "Load from Persistence?",
+        "type": "BoolType",
+        "description": "It `True`, after stopping the block, the previous state of the block (queue time remaining) will be loaded upon restart.",
+        "default": true
+      },
+      "reload": {
+        "title": "Auto-Reload?",
+        "type": "BoolType",
+        "description": "If `True`, notified signals immediately get reloaded back onto the end of the queue they came off of.",
+        "default": false
+      },
+      "uniqueness": {
+        "title": "Queue Uniqueness Expression",
+        "type": "Type",
+        "description": "If specified, each queue (i.e. `group_by`) will not allow multiple signals that evaluate to the same `uniqueness`. If a signal comes in that matches `group_by` and `uniqueness` with a signal already in the queue, then it the new signal dropped.",
+        "default": "{{ None }}"
+      },
+      "update": {
+        "title": "Update Non-Unique Signals",
+        "type": "BoolType",
+        "description": "If `True` and a uniqueness expression is set, incoming signals that would have been rejected by the uniqueness expression instead replace the signal that was competing with the incoming signal for uniqueness.",
+        "default": false
+      }
+    },
+    "inputs": {
+      "default": {
+        "description": "Any list of signals."
+      }
+    },
+    "outputs": {
+      "default": {
+        "description": "List of signals emitted from queues each `interval` period and `emit` command."
+      }
+    },
+    "commands": {
+      "emit": {
+        "params": {},
+        "description": "Notify signals off the end of the queues."
+      },
+      "groups": {
+        "params": {},
+        "description": "Display the list of groupings that signals are being grouped into."
+      },
+      "remove": {
+        "params": {
+          "group": {
+            "allow_none": false,
+            "default": "",
+            "title": "group"
+          },
+          "query": {
+            "allow_none": false,
+            "default": "",
+            "title": "query"
+          }
+        },
+        "description": "Remove signals from the queue *group* where *query* evaluates to `True`. *query* uses the Expression Property syntax for evaluatuation. For example, to remove all signals, use `{{True}}` or to remove signals with *val* equal to 1 use `{{$val == 1}}`. If no *group* is specified, then all groups are inspected. Signals are not notified."
+      },
+      "update_props": {
+        "params": {
+          "props": {
+            "allow_none": false,
+            "default": "",
+            "title": "props"
+          }
+        },
+        "description": "Modify the value of a property on a started block. Parameter `props` is a dictionary where the `key` is a block property and the `value` is the new value. `interval` is the only property currently supported. When `interval` is updated, the recurring emit job will be cancelled and restarted, even if the new value is equal to the previous one."
+      },
+      "view": {
+        "params": {
+          "group": {
+            "allow_none": false,
+            "default": "",
+            "title": "group"
+          },
+          "query": {
+            "allow_none": false,
+            "default": "{{ True }}",
+            "title": "query"
+          }
+        },
+        "description": "View signals in the queue *group*. If *group* is not specified, all signals in all queues are returned. Signals are not notified."
+      }
+    }
   }
 }
