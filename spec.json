@@ -1,7 +1,7 @@
 {
   "nio/Queue": {
     "version": "1.0.0",
-    "description": "A NIO block for queueing up signals. As signals pile up, the Queue block notifies a configurable `chunk_size` of signals in the queue at a configurable time `interval`. If incoming signals would overflow the queue, signals are popped off the front end as needed. These overflow signals are simply dropped, not notified and sent to the next block.",
+    "description": "A nio block for queueing up signals. As signals pile up, the Queue block notifies a configurable `chunk_size` of signals in the queue at a configurable time `interval`. If incoming signals would overflow the queue, signals are popped off the front end as needed. These overflow signals are simply dropped, not notified and sent to the next block.",
     "categories": [
       "Signal Flow"
     ],
