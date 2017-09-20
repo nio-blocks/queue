@@ -38,6 +38,7 @@ class Queue(Persistence, GroupBy, Block):
     """
     version = VersionProperty('1.0.0')
     interval = TimeDeltaProperty(title='Notification Interval',
+                                 default={'seconds': 1},
                                  allow_none=True)
     capacity = IntProperty(default=100, title='Capacity')
     chunk_size = IntProperty(default=1, title='Chunk Size')
