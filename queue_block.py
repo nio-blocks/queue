@@ -60,6 +60,7 @@ class Queue(Persistence, GroupBy, Block):
 
     def configure(self, context):
         super().configure(context)
+        self._queues = defaultdict(list, self._queues)
         # Make sure perisisted queue capacity is less than current config
         for queue_name, queue_values in self._queues.items():
             self._queues[queue_name] = queue_values[:self.capacity()]
