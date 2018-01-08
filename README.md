@@ -1,12 +1,6 @@
 Queue
 =====
-The queue block will emit a configurable 'chunk size' of signals at a configurable 'interval'. If incoming signals would overflow the queue 'capacity', the oldest signals are dropped from the queue and not emitted to the next block. 
-
-If a 'group_by' string is configured, incoming signals are put into groups base on the value of 'group_by', which should be an expected attribute of the incoming signals. The configured 'capacity' applies to *each* group, not the block as a whole. If no 'group_by' is set, there is only one queue.
-
-If a 'uniqueness' expression is set, then each group will only contain signals that are unique according to the expression. If a signal matches a signal already in the group, then it will be dropped and not append to the queue.
-
-A negative 'interval' means that signals will not be emitted at any interval. Instead, the 'emit' command is the only way for the block to emit signals.
+The Queue block will gather incoming signals and emit a configurable 'chunk size' of signals at a configurable 'interval'. If incoming signals would overflow the queue 'capacity', the oldest signals are dropped from the queue and not emitted to the next block.
 
 Properties
 ----------
@@ -15,7 +9,7 @@ Properties
 - **chunk_size**: Number of signals to emit at each `interval` or `emit` command.
 - **group_by**: Signal attribute that determines what queue to put the signal in. Defaults to group `null` if attribute does not exist or `group_by` is unspecified.
 - **interval**: Period at which signals are emitted from queues.
-- **load_from_persistence**: If `True`, after stopping the block, the previous state of the block (queue time remaining) will be loaded upon restart. If the 'capacity' is configured smaller than the the persisted queues, then signals are removed from the back of the queue during block configure to get the queues down to the current configured 'capacity'.
+- **load_from_persistence**: If `True`, after stopping the block, the previous state of the block (queue time remaining) will be loaded upon restart.
 - **reload**: If `True`, emitted signals immediately get reloaded back into the end of the queue.
 - **uniqueness**: If specified, each queue (i.e. `group_by`) will not allow multiple signals that evaluate to the same `uniqueness`. If a signal comes in that matches `group_by` and `uniqueness` with a signal already in the queue, then the new signal is dropped from the queue.
 - **update**: If `True` and a uniqueness expression is set, incoming signals that would have been rejected by the uniqueness expression instead replace the signal that was competing with the incoming signal for uniqueness.

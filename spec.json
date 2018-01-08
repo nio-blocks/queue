@@ -1,7 +1,7 @@
 {
   "nio/Queue": {
     "version": "1.0.0",
-    "description": "The queue block will emit a configurable 'chunk size' of signals at a configurable 'interval'. If incoming signals would overflow the queue 'capacity', the oldest signals are dropped from the queue and not emitted to the next block.",
+    "description": "The Queue block will gather incoming signals and emit a configurable 'chunk size' of signals at a configurable 'interval'. If incoming signals would overflow the queue 'capacity', the oldest signals are dropped from the queue and not emitted to the next block.",
     "categories": [
       "Signal Flow"
     ],
