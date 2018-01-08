@@ -36,7 +36,7 @@ class Queue(Persistence, GroupBy, Block):
     applies to *each* such queue, not the block as a whole.
 
     """
-    version = VersionProperty('1.0.0')
+    version = VersionProperty("1.0.1")
     interval = TimeDeltaProperty(title='Notification Interval',
                                  default={'seconds': 1},
                                  allow_none=True)
