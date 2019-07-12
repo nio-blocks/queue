@@ -92,13 +92,12 @@ class TestQueue(NIOBlockTestCase):
         ])
 
         blk.process_signals([
-            Signal({"group": "a", "number": 3}),
             Signal({"group": "b", "number": 1}),
         ])
         self.assertEqual(len(blk._queues), 2)
         self.assert_num_signals_notified(4, blk)
         self.assert_signal_list_notified([
-            Signal({"group": "a", "number": 3}),
+            Signal({"group": "a", "number": 2}),
             Signal({"group": "b", "number": 1}),
         ])
 
