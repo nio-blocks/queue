@@ -59,24 +59,49 @@ class TestQueue(NIOBlockTestCase):
         blk.stop()
 
     def test_zero_interval(self):
-        """ Don't emit signals on any interval when it is zero """
-        signals = [Signal({})]
+        """ Emit all queued signals on process_signals """
         blk = Queue()
         config = {
+            "capacity": 1,
+            "chunk_size": 1,
+            "group_by": "{{ $group }}",
             "interval": {
                 "seconds": 0
             },
-            "capacity": 4,
-            "chunk_size": 1,
+            "reload": True,
         }
         self.configure_block(blk, config)
         blk.start()
-        blk.process_signals(signals)
-        JumpAheadScheduler.jump_ahead(2)
 
-        # signal should still be in the queue, and no signals notified
-        self.assertEqual(len(blk._queues[None]), 1)
-        self.assert_num_signals_notified(0, blk)
+        blk.process_signals([
+            Signal({"group": "a", "number": 1}),
+        ])
+        self.assertEqual(len(blk._queues), 1)
+        self.assert_num_signals_notified(1, blk)
+        self.assert_signal_list_notified([
+            Signal({"group": "a", "number": 1}),
+        ])
+
+        blk.process_signals([
+            Signal({"group": "a", "number": 2}),
+        ])
+        self.assertEqual(len(blk._queues), 1)
+        self.assert_num_signals_notified(2, blk)
+        self.assert_signal_list_notified([
+            Signal({"group": "a", "number": 2}),
+        ])
+
+        blk.process_signals([
+            Signal({"group": "a", "number": 3}),
+            Signal({"group": "b", "number": 1}),
+        ])
+        self.assertEqual(len(blk._queues), 2)
+        self.assert_num_signals_notified(4, blk)
+        self.assert_signal_list_notified([
+            Signal({"group": "a", "number": 3}),
+            Signal({"group": "b", "number": 1}),
+        ])
+
         blk.stop()
 
     def test_group_by(self):
