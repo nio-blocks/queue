@@ -78,6 +78,8 @@ class Queue(Persistence, GroupBy, Block):
     def process_signals(self, signals):
         self.logger.debug("Processing {} signals".format(len(signals)))
         self.for_each_group(self._push_group, signals)
+        if not self.interval():
+            self.emit()
 
     def pop(self, grp):
         ''' Remove the top n signals from the specified queue.
