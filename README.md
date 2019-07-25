@@ -8,7 +8,7 @@ Properties
 - **capacity**: Size of each queue. When the queue exceeds `capacity`, the oldest signals are dropped from the queue and *not* notified.
 - **chunk_size**: Number of signals to emit at each `interval` or `emit` command.
 - **group_by**: Signal attribute that determines what queue to put the signal in. Defaults to group `null` if attribute does not exist or `group_by` is unspecified.
-- **interval**: Period at which signals are emitted from queues.
+- **interval**: Period at which signals are emitted from queues. If `0`, signals will not be emitted only after processing imcoming signals, rather than at an interval. Note: It may be necessary to enable `Auto Reload` for this to work as intended.
 - **load_from_persistence**: If `True`, after stopping the block, the previous state of the block (queue time remaining) will be loaded upon restart.
 - **reload**: If `True`, emitted signals immediately get reloaded back into the end of the queue.
 - **uniqueness**: If specified, each queue (i.e. `group_by`) will not allow multiple signals that evaluate to the same `uniqueness`. If a signal comes in that matches `group_by` and `uniqueness` with a signal already in the queue, then the new signal is dropped from the queue.
